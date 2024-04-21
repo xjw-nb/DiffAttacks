@@ -56,7 +56,7 @@ class SDE_Adv_Model(nn.Module):
     def set_tag(self, tag=None):
         self.tag = tag
 
-    def forward(self, x, return_mid=False, return_std_z=False, steps = 0):
+    def forward(self, x, return_mid=False, return_std_z=False, steps = 0): #return_mid=False表示不返回中间结果,return_std_z=False表示不反回标准差和噪声
 
         if steps!=0:
             tmp_steps = self.args.t
@@ -64,13 +64,13 @@ class SDE_Adv_Model(nn.Module):
 
         counter = self.counter.item()
         if counter % 5 == 0:
-            print(f'diffusion times: {counter}')
+            print(f'diffusion times: {counter}') #每5步输出当前的扩散步数
 
         # imagenet [3, 224, 224] -> [3, 256, 256] -> [3, 224, 224]
         if 'imagenet' in self.args.domain:
-            x = F.interpolate(x, size=(256, 256), mode='bilinear', align_corners=False)
+            x = F.interpolate(x, size=(256, 256), mode='bilinear', align_corners=False) #对图像进行双线性插值为大小为256*256的尺寸
 
-        start_time = time.time()
+        start_time = time.time() #获取系统当前时间
 
         if return_std_z == False:
             x_re,mid_x,ori_x = self.runner.image_editing_sample((x - 0.5) * 2, bs_id=counter, tag=self.tag)
@@ -102,11 +102,11 @@ class SDE_Adv_Model(nn.Module):
             return out, mid_x, ori_x, a_std, z__
         return out, mid_x, ori_x
 
-def test_bpda_adv(args, model, x_adv, y_val, config):
+def test_bpda_adv(args, model, x_adv, y_val, config): #测试模型在bpda生成的对抗样本上的鲁棒性
     x_adv = x_adv.to(config.device)
-    with torch.no_grad():
-        bs = 10
-        n_batches = int(np.ceil(x_adv.shape[0] / bs))
+    with torch.no_grad(): #表示不进行梯度更新
+        bs = 10#每批次个数10
+        n_batches = int(np.ceil(x_adv.shape[0] / bs))#计算总的批次
         robust_flags = torch.zeros(x_adv.shape[0], dtype=torch.bool, device=x_adv.device)
         y_adv = torch.empty_like(y_val)
         for batch_idx in range(n_batches):
@@ -122,6 +122,7 @@ def test_bpda_adv(args, model, x_adv, y_val, config):
         robust_accuracy = torch.sum(robust_flags).item() / x_adv.shape[0]
     print(f'--------------')
     print(f'Robust accuracy of BPDA attack: {robust_accuracy}')
+    print(f'输出:{x_adv.shape}')
 
 def eval_diffattack(args, config, model, x_val, y_val, adv_batch_size, log_dir):
     ngpus = torch.cuda.device_count()
