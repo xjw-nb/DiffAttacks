@@ -115,9 +115,11 @@ class Diffusion_cifar(torch.nn.Module):
 
     def p_mean_variance(self, x_t, t):
         # below: only log_variance is used in the KL computations
+        #model_log_var为一个字典，根据var_type选择不同的模型对数方差
         model_log_var = {
             # for fixedlarge, we set the initial (log-)variance like so to
             # get a better decoder log likelihood
+            #torch.cat表示对两部分进行拼接
             'fixedlarge': torch.log(torch.cat([self.posterior_var[1:2],
                                                self.betas[1:]])),
             'fixedsmall': self.posterior_log_var_clipped,
@@ -242,16 +244,16 @@ class Diffusion_cifar(torch.nn.Module):
 
 
     def compute_efficient_gradient(self, grad, idx):
-        batch_size = self.mid_x[idx].shape[0]
+        batch_size = self.mid_x[idx].shape[0] #mid_x[idx]表示一个张量，.shape[0]表示该张量的第一个维度。idx表示扩散步数的一个索引
 
-        with torch.enable_grad():
+        with torch.enable_grad(): #表示下面代码需要用梯度计算
             # self.mid_x[idx] = torch.tensor(self.mid_x[idx], requires_grad=True, device=self.mid_x[idx].device)
             self.mid_x[idx] = self.mid_x[idx].clone().detach().requires_grad_(True)
-
+            #total_noise_levels，表示总的噪声采样的步数400
             t = torch.tensor([self.total_noise_levels-1-idx] * batch_size, device=self.mid_x[idx].device)
 
             x, log_var = self.p_mean_variance(x_t=self.mid_x[idx], t=t)
-            noise = self.noises[idx]
+            noise = self.noises[idx] #获得当前索引的噪声
             x = x + torch.exp(0.5 * log_var) * noise
 
 
@@ -292,7 +294,7 @@ class Diffusion_cifar(torch.nn.Module):
 
         return grad_new
 
-    def compute_efficient_gradient_mse(self, grad, idx):
+    def compute_efficient_gradient_mse(self, grad, idx): #偏差重建损失
         batch_size = self.mid_x[idx].shape[0]
 
         with torch.enable_grad():
