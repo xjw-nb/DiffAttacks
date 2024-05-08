@@ -242,7 +242,8 @@ class Diffusion_cifar(torch.nn.Module):
 
         return torch.cat(xs, dim=0), mid_x, ori_x
 
-
+    # grad=∂L/∂x't-1  ,函数目的:求出∂L/∂x't 并释放∂L/∂x't-1的内存
+    #假设时间步为400，mid_x[idx]=[x'399,x'398 .....x'1,x'0],反向去噪的样本
     def compute_efficient_gradient(self, grad, idx):
         batch_size = self.mid_x[idx].shape[0] #mid_x[idx]表示一个张量，.shape[0]表示该张量的第一个维度。idx表示扩散步数的一个索引
 
@@ -251,10 +252,11 @@ class Diffusion_cifar(torch.nn.Module):
             self.mid_x[idx] = self.mid_x[idx].clone().detach().requires_grad_(True)
             #total_noise_levels，表示总的噪声采样的步数400
             t = torch.tensor([self.total_noise_levels-1-idx] * batch_size, device=self.mid_x[idx].device)
-
+            #张量t不知道什么作用
             x, log_var = self.p_mean_variance(x_t=self.mid_x[idx], t=t)
+            #p_mean_variance()计算了条件概率分布 pθ(x'0|x'1) 的均值 x 和方差 log_var
             noise = self.noises[idx] #获得当前索引的噪声
-            x = x + torch.exp(0.5 * log_var) * noise
+            x = x + torch.exp(0.5 * log_var) * noise #对均值x的值进行调整
 
 
             loss = torch.sum(x * grad)
@@ -267,17 +269,19 @@ class Diffusion_cifar(torch.nn.Module):
 
         return grad_new
 
+    #classifier被攻击的分类器，loss_funct为交叉熵损失函数，x为输入图片x'0,label为真实标签
+    #该函数用于求出损失对输入图片x'0的梯度
     def compute_efficient_gradient_classifier(self, classifier, loss_funct, x, label):
         with torch.enable_grad():
             # x = torch.tensor(x,requires_grad=True,device=label.device)
             x = x.clone().detach().requires_grad_(True)
 
             out = classifier(x)
-            loss__ = loss_funct(out, label)
+            loss__ = loss_funct(out, label) #求预测标签与真实标签的一个损失
             loss_ce = loss__.clone()
             loss = torch.mean(loss__)
-
-            grad_new = torch.autograd.grad(loss, [x])[0].detach()
+            #计算标量损失对对张量x的梯度
+            grad_new = torch.autograd.grad(loss, [x])[0].detach() #torch.autograd.grad计算loss对变量x的梯度。[0]表示返回梯度列表的第一个元素
 
         return loss_ce, grad_new
 
@@ -294,6 +298,10 @@ class Diffusion_cifar(torch.nn.Module):
 
         return grad_new
 
+    # ori_x=[ xT  xT-1 .... x1 x0 ] x0到xT是逐步加噪的图片
+    # mid_x=[XT x'T-1 x'T-2 ......x'1  x'0] xT到x0的逐步去噪图片，idx是下标，从0开始
+    # grad=∂L/∂x't-1  ,函数目的:求出∂L/∂x't 并释放∂L/∂x't-1的内存
+    # 和上一个函数的区别是这个往原先的交叉熵损失加多了一个偏差重建损失，偏差重建损失仅添加在部分时间步
     def compute_efficient_gradient_mse(self, grad, idx): #偏差重建损失
         batch_size = self.mid_x[idx].shape[0]
 
@@ -303,7 +311,7 @@ class Diffusion_cifar(torch.nn.Module):
 
             t = torch.tensor([self.total_noise_levels-1-idx] * batch_size, device=self.mid_x[idx].device)
 
-            x, log_var = self.p_mean_variance(x_t=self.mid_x[idx], t=t)
+            x, log_var = self.p_mean_variance(x_t=self.mid_x[idx], t=t) #x_t当前时间步的样本，
             noise = self.noises[idx]
             x = x + torch.exp(0.5 * log_var) * noise
 
@@ -312,8 +320,11 @@ class Diffusion_cifar(torch.nn.Module):
             mse = torch.nn.MSELoss(reduction='none')
             mid_x = self.mid_x[idx]
             ori_x = self.ori_x[idx]
+            # || x't - xt ||2 偏差重建损失
+            # 计算两个张量 mid_x 和 ori_x 之间的均方误差 (MSE) 损失
+            #.view()对 ori_x 张量进行形状调整，使其形状与 mid_x 相同
             loss_mse = mse(mid_x, ori_x.view(mid_x.shape))
-            loss_mse = loss_mse.view(loss_mse.shape[0],-1)
+            loss_mse = loss_mse.view(loss_mse.shape[0],-1) #将loss_mse的形状进行重塑为(loss_mse.shape[0],-1)。-1表示改维度的大小由数据自行推断
             loss_mse = torch.mean(loss_mse, dim=-1)
             loss_mse = torch.mean(loss_mse, dim=0)
 
