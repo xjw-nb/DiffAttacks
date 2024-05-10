@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 cd ../..
 
-SEED1=$1
-SEED2=$2
+SEED1=1234
+SEED2=0
 
 for t in 0; do
   for adv_eps in 0.015686; do

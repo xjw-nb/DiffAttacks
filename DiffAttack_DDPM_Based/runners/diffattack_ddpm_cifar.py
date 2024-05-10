@@ -115,11 +115,11 @@ class Diffusion_cifar(torch.nn.Module):
 
     def p_mean_variance(self, x_t, t):
         # below: only log_variance is used in the KL computations
-        #model_log_var为一个字典，根据var_type选择不同的模型对数方差
+        # model_log_var为一个字典，根据var_type选择不同的模型对数方差
         model_log_var = {
             # for fixedlarge, we set the initial (log-)variance like so to
             # get a better decoder log likelihood
-            #torch.cat表示对两部分进行拼接
+            # torch.cat表示对两部分进行拼接
             'fixedlarge': torch.log(torch.cat([self.posterior_var[1:2],
                                                self.betas[1:]])),
             'fixedsmall': self.posterior_log_var_clipped,

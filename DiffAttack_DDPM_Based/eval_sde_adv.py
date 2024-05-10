@@ -132,7 +132,7 @@ def eval_diffattack(args, config, model, x_val, y_val, adv_batch_size, log_dir):
 
     attack_version = args.attack_version  # ['standard', 'rand', 'custom']
     if attack_version == 'standard':
-        attack_list = ['apgd-ce', 'apgd-t', 'fab-t', 'square']
+        attack_list = ['apgd-ce', 'apgd-t', 'fab-t', 'square']#自适应攻击
     elif attack_version == 'rand':
         attack_list = ['apgd-ce']
     elif attack_version == 'custom':
@@ -259,7 +259,7 @@ def parse_args_and_config():
 
     args.image_folder = os.path.join(args.exp, args.image_folder)
     os.makedirs(args.image_folder, exist_ok=True)
-    print("hhhhhhhhhhhhhhhhhhhhh",args.image_folder)
+    #print("hhhhhhhhhhhhhhhhhhhhh",args.image_folder)
     # add device
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     logging.info("Using device: {}".format(device))

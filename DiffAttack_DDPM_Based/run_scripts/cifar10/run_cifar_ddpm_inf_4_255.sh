@@ -9,7 +9,7 @@ for t in 100; do
     for seed in $SEED1; do
       for data_seed in $SEED2; do
 
-        CUDA_VISIBLE_DEVICES=4 python eval_sde_adv.py --exp ./exp_results --config cifar10.yml \
+        CUDA_VISIBLE_DEVICES=0 python eval_sde_adv.py --exp ./exp_results --config cifar10.yml \
           -i MSE_4_255_cifar10-robust_adv-$t-eps$adv_eps-64x1-bm0-t0-end1e-5-cont-eot20 \
           --t $t \
           --adv_eps $adv_eps \

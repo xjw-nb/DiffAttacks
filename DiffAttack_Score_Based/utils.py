@@ -244,7 +244,8 @@ def get_image_classifier(classifier_name):
 
 def load_data(args, adv_batch_size):
     if 'imagenet' in args.domain:
-        val_dir = '/data/common/ILSVRC2012/val'  # using imagenet lmdb data
+        val_dir = '/data/common/ILSVRC2012/val'
+        #val_dir = '/data/common/ILSVRC2012/val'  # using imagenet lmdb data
         val_transform = data.get_transform(args.domain, 'imval', base_size=224)
         val_data = data.imagenet_lmdb_dataset_sub(val_dir, transform=val_transform,
                                                   num_sub=args.num_sub, data_seed=args.data_seed)
