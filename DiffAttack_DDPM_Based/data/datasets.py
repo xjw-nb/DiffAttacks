@@ -257,7 +257,7 @@ def get_transform(dataset, transform_type, base_size=256):
 ################################################################################
 # ImageNet - LMDB
 ###############################################################################
-
+# 加载LMDB格式的数据集。数据集如何被编码为LMDB格式？
 def lmdb_loader(path, lmdb_data):
     # In-memory binary streams
     with lmdb_data.begin(write=False, buffers=True) as txn:
@@ -265,25 +265,23 @@ def lmdb_loader(path, lmdb_data):
     img = Image.open(io.BytesIO(bytedata))
     return img.convert('RGB')
 
-
-def imagenet_lmdb_dataset(
-        root, transform=None, target_transform=None,
-        loader=lmdb_loader):
-    """
+"""
     You can create this dataloader using:
     train_data = imagenet_lmdb_dataset(traindir, transform=train_transform)
     valid_data = imagenet_lmdb_dataset(validdir, transform=val_transform)
-    """
-
+"""
+def imagenet_lmdb_dataset(
+        root, transform=None, target_transform=None,
+        loader=lmdb_loader):
     if root.endswith('/'):
         root = root[:-1]
     pt_path = os.path.join(
         root + '_faster_imagefolder.lmdb.pt')
     lmdb_path = os.path.join(
         root + '_faster_imagefolder.lmdb')
-    if os.path.isfile(pt_path) and os.path.isdir(lmdb_path):
+    if os.path.isfile(pt_path) and os.path.isdir(lmdb_path):  # 若路径路径存在则打印
         print('Loading pt {} and lmdb {}'.format(pt_path, lmdb_path))
-        data_set = torch.load(pt_path)
+        data_set = torch.load(pt_path)  #从.pt文件中加载数据集
     else:
         data_set = ImageFolder(
             root, None, None, None)
@@ -304,7 +302,7 @@ def imagenet_lmdb_dataset(
     data_set.transform = transform
     data_set.target_transform = target_transform
     data_set.loader = lambda path: loader(path, data_set.lmdb_data)
-
+   # print("=======",path)
     return data_set
 
 
@@ -329,8 +327,9 @@ def imagenet_lmdb_dataset_sub(
 def cifar10_dataset_sub(root, transform=None, num_sub=-1, data_seed=0):
     val_data = torchvision.datasets.CIFAR10(root=root, transform=transform, download=True, train=False)
 
-    if num_sub > 0:
-        partition_idx = np.random.RandomState(data_seed).choice(len(val_data), num_sub, replace=False)
-        val_data = Subset(val_data, partition_idx)
-
-    return val_data
+    # if num_sub > 0:
+    #     partition_idx = np.random.RandomState(data_seed).choice(len(val_data), num_sub, replace=False)
+    #     val_data = Subset(val_data, partition_idx)
+    single_image = val_data[0]
+    return single_image
+    #return val_data

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 cd ../..
 
-SEED1=1234
-SEED2=0
+SEED1=3
+SEED2=4
 
 for t in 150; do
   for adv_eps in 0.0157; do
@@ -14,7 +14,7 @@ for t in 150; do
           --t $t \
           --adv_eps $adv_eps \
           --adv_batch_size 1 \
-          --num_sub 16 \
+          --num_sub 1 \
           --domain imagenet \
           --classifier_name imagenet-wideresnet-50-2 \
           --seed $seed \

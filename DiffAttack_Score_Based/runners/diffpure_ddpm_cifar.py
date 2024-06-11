@@ -182,12 +182,12 @@ class Diffusion_cifar(torch.nn.Module):
         xs = []
         for it in range(self.sample_step):
             e = torch.randn_like(x0)
-            total_noise_levels = self.args.t
-            a = (1 - self.betas).cumprod(dim=0).to(x0.device)
+            total_noise_levels = self.args.t  # 代码为设置为400
+            a = (1 - self.betas).cumprod(dim=0).to(x0.device)  # cumprod累乘操作
             x = x0 * a[total_noise_levels - 1].sqrt() + e * (1.0 - a[total_noise_levels - 1]).sqrt()
 
             ori_x = []
-            for t_tmp in reversed(range(0, total_noise_levels - 1)):
+            for t_tmp in reversed(range(0, total_noise_levels - 1)):  # 实现反向循环，依次将加噪的图片加入ori_x中
                 ori_x.append(x0 * a[t_tmp].sqrt() + e * (1.0 - a[t_tmp]).sqrt())
             ori_x.append(x0)
 
@@ -195,7 +195,7 @@ class Diffusion_cifar(torch.nn.Module):
             #     tvu.save_image((x + 1) * 0.5, os.path.join(out_dir, f'init_{it}.png'))
 
             mid_x = []
-            for i in reversed(range(total_noise_levels)):
+            for i in reversed(range(total_noise_levels)):  # 依次将去噪的图片加入mid_x中
                 t = torch.tensor([i] * batch_size, device=img.device)
 
                 x, log_var = self.p_mean_variance(x_t=x, t=t)

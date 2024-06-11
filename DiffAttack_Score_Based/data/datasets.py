@@ -30,9 +30,7 @@ def remove_prefix(s, prefix):
         s = s[len(prefix):]
     return s
 
-
-class ImageDataset(VisionDataset):
-    """
+"""
     modified from: https://pytorch.org/docs/stable/_modules/torchvision/datasets/folder.html#ImageFolder
     uses cached directory listing if available rather than walking directory
      Attributes:
@@ -40,8 +38,8 @@ class ImageDataset(VisionDataset):
         class_to_idx (dict): Dict with items (class_name, class_index).
         samples (list): List of (sample path, class_index) tuples
         targets (list): The class_index value for each image in the dataset
-    """
-
+"""
+class ImageDataset(VisionDataset):
     def __init__(self, root, loader=folder.default_loader,
                  extensions=folder.IMG_EXTENSIONS, transform=None,
                  target_transform=None, is_valid_file=None, return_path=False):
@@ -257,24 +255,22 @@ def get_transform(dataset, transform_type, base_size=256):
 ################################################################################
 # ImageNet - LMDB
 ###############################################################################
-
+# 函数作用从 LMDB 数据库中加载图像数据，并将其转换为 RGB 模式的图像
 def lmdb_loader(path, lmdb_data):
     # In-memory binary streams
     with lmdb_data.begin(write=False, buffers=True) as txn:
         bytedata = txn.get(path.encode('ascii'))
     img = Image.open(io.BytesIO(bytedata))
     return img.convert('RGB')
-
-
+"""
+You can create this dataloader using:
+train_data = imagenet_lmdb_dataset(traindir, transform=train_transform)
+valid_data = imagenet_lmdb_dataset(validdir, transform=val_transform)
+"""
+# 函数作用加载数据集
 def imagenet_lmdb_dataset(
         root, transform=None, target_transform=None,
         loader=lmdb_loader):
-    """
-    You can create this dataloader using:
-    train_data = imagenet_lmdb_dataset(traindir, transform=train_transform)
-    valid_data = imagenet_lmdb_dataset(validdir, transform=val_transform)
-    """
-
     if root.endswith('/'):
         root = root[:-1]
     pt_path = os.path.join(
@@ -290,7 +286,7 @@ def imagenet_lmdb_dataset(
         torch.save(data_set, pt_path, pickle_protocol=4)
         print('Saving pt to {}'.format(pt_path))
         print('Building lmdb to {}'.format(lmdb_path))
-        env = lmdb.open(lmdb_path, map_size=1e12)
+        env = lmdb.open(lmdb_path, map_size=1e12) # 原1e12
         with env.begin(write=True) as txn:
             for path, class_index in data_set.imgs:
                 with open(path, 'rb') as f:
@@ -328,9 +324,9 @@ def imagenet_lmdb_dataset_sub(
 
 def cifar10_dataset_sub(root, transform=None, num_sub=-1, data_seed=0):
     val_data = torchvision.datasets.CIFAR10(root=root, transform=transform, download=True, train=False)
-
     if num_sub > 0:
         partition_idx = np.random.RandomState(data_seed).choice(len(val_data), num_sub, replace=False)
         val_data = Subset(val_data, partition_idx)
-
+    # single_image = val_data[0]
+    # return single_image
     return val_data

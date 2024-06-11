@@ -15,7 +15,7 @@ import torchvision.utils as tvu
 
 from ddpm.unet_ddpm import Model
 
-
+# 获取beta的值
 def get_beta_schedule(*, beta_start, beta_end, num_diffusion_timesteps):
     betas = np.linspace(beta_start, beta_end,
                         num_diffusion_timesteps, dtype=np.float64)
@@ -33,7 +33,7 @@ def extract(a, t, x_shape):
     out = out.reshape((bs,) + (1,) * (len(x_shape) - 1))
     return out
 
-
+#  函数实现反向去噪
 def image_editing_denoising_step_flexible_mask(x, t, *, model, logvar, betas):
     """
     Sample from p(x_{t-1} | x_t)
@@ -117,10 +117,10 @@ class Diffusion(torch.nn.Module):
                 e = torch.randn_like(x0)
                 total_noise_levels = self.args.t
                 a = (1 - self.betas).cumprod(dim=0).to(x0.device)
-                x = x0 * a[total_noise_levels - 1].sqrt() + e * (1.0 - a[total_noise_levels - 1]).sqrt()
+                x = x0 * a[total_noise_levels - 1].sqrt() + e * (1.0 - a[total_noise_levels - 1]).sqrt()  # x进行一次加噪的图片
 
                 if bs_id < 2:
-                    tvu.save_image((x + 1) * 0.5, os.path.join(out_dir, f'init_{it}.png'))
+                    tvu.save_image((x + 1) * 0.5, os.path.join(out_dir, f'init_{it}.png'))  #
 
                 for i in reversed(range(total_noise_levels)):
                     t = torch.tensor([i] * batch_size, device=img.device)
@@ -128,7 +128,7 @@ class Diffusion(torch.nn.Module):
                                                                     logvar=self.logvar,
                                                                     betas=self.betas.to(img.device))
                     # added intermediate step vis
-                    if (i - 49) % 50 == 0 and bs_id < 2:
+                    if (i - 49) % 50 == 0 and bs_id < 2:  # 为什么有这个条件(i - 49) % 50 == 0？
                         tvu.save_image((x + 1) * 0.5, os.path.join(out_dir, f'noise_t_{i}_{it}.png'))
 
                 x0 = x

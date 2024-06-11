@@ -239,7 +239,7 @@ class RevGuidedDiffusion(torch.nn.Module):
 
         if bs_id < 2:
             os.makedirs(out_dir, exist_ok=True)
-            tvu.save_image((x0 + 1) * 0.5, os.path.join(out_dir, f'original_input.png'))
+            tvu.save_image((x0 + 1) * 0.5, os.path.join(out_dir, f'original_input.png'))  # x0还原，为原始图像
 
         xs = []
 
@@ -266,7 +266,7 @@ class RevGuidedDiffusion(torch.nn.Module):
             for t_tmp in reversed(range(0,total_noise_levels-1)):
                 ori_x.append(x0 * a[t_tmp].sqrt() + e * (1.0 - a[t_tmp]).sqrt())
 
-            ori_x.append(x0)
+            ori_x.append(x0)  # ori_x[]保存了0到399步加噪的图像
 
 
             if bs_id < 2:

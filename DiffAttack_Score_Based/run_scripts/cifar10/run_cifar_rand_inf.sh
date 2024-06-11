@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 cd ../..
 
-SEED1=0
-SEED2=1234
+SEED1=1234
+SEED2=0
 
 for t in 100; do
   for adv_eps in 0.031373; do
@@ -13,7 +13,7 @@ for t in 100; do
           --t $t \
           --adv_eps $adv_eps \
           --adv_batch_size 64 \
-          --num_sub 64 \
+          --num_sub 1 \
           --domain cifar10 \
           --classifier_name cifar10-wideresnet-28-10 \
           --seed $seed \

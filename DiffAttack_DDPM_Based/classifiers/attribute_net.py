@@ -9,21 +9,21 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-
+# 进行线性插值a,b表示线性插值的两个断点，t为线性插值的权重
 def lerp_clip(a, b, t):
     return a + (b - a) * torch.clamp(t, 0.0, 1.0)
 
-
+# 此类定义一个权重缩放层，size表示输入张量的大小，fan_in表示输入张量的通道数，gain表示缩放因子，bias表示是否添偏置
 class WScaleLayer(nn.Module):
     def __init__(self, size, fan_in, gain=np.sqrt(2), bias=True):
         super(WScaleLayer, self).__init__()
         self.scale = gain / np.sqrt(fan_in)  # No longer a parameter
         if bias:
-            self.b = nn.Parameter(torch.randn(size))
+            self.b = nn.Parameter(torch.randn(size))  # 若bias为ture则创建一个可学习的偏置参数b大小为size
         else:
             self.b = 0
         self.size = size
-
+# 定义前向传播函数，用于对输入张量应用权重缩放和偏置
     def forward(self, x):
         x_size = x.size()
         x = x * self.scale
@@ -36,7 +36,7 @@ class WScaleLayer(nn.Module):
                 x_size[0], self.size)
         return x
 
-
+#  定义缩放卷积操作
 class WScaleConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, padding=0,
                  bias=True, gain=np.sqrt(2)):
@@ -45,7 +45,7 @@ class WScaleConv2d(nn.Module):
                               kernel_size=kernel_size,
                               padding=padding,
                               bias=False)
-        fan_in = in_channels * kernel_size * kernel_size
+        fan_in = in_channels * kernel_size * kernel_size  # 表示了每个神经元在该层中接收到的输入信号的数量
         self.wscale = WScaleLayer(out_channels, fan_in, gain=gain, bias=bias)
 
     def forward(self, x):
@@ -62,10 +62,10 @@ class WScaleLinear(nn.Module):
     def forward(self, x):
         return self.wscale(self.linear(x))
 
-
+# 该类实现将RGB图像转化为特征图
 class FromRGB(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
-                 act=nn.LeakyReLU(0.2), bias=True):
+                 act=nn.LeakyReLU(0.2), bias=True):  # act为激活函数，0.2表示斜率
         super().__init__()
         self.conv = WScaleConv2d(in_channels, out_channels, kernel_size,
                                  padding=0, bias=bias)
@@ -74,9 +74,9 @@ class FromRGB(nn.Module):
     def forward(self, x):
         return self.act(self.conv(x))
 
-
+# 该类实现下采样操作
 class Downscale2d(nn.Module):
-    def __init__(self, factor=2):
+    def __init__(self, factor=2):  # factor为缩放因子，2表示高和宽都被减半
         super().__init__()
         self.downsample = nn.AvgPool2d(kernel_size=factor, stride=factor)
 
@@ -119,12 +119,12 @@ class MinibatchStdLayer(nn.Module):
         s = x.shape
         y = x.view([group_size, -1, s[1], s[2], s[3]])
         y = y.float()
-        y = y - torch.mean(y, dim=0, keepdim=True)
+        y = y - torch.mean(y, dim=0, keepdim=True)  # 表示在第0维进行均值操作，keepdim=True表示保留操作后的维度
         y = torch.mean(y * y, dim=0)
         y = torch.sqrt(y + 1e-8)
         y = torch.mean(torch.mean(torch.mean(y, dim=3, keepdim=True),
                                   dim=2, keepdim=True), dim=1, keepdim=True)
-        y = y.type(x.type())
+        y = y.type(x.type())  # 将y的类型转换为x的类型
         y = y.repeat(group_size, 1, s[2], s[3])
         return torch.cat([x, y], dim=1)
 

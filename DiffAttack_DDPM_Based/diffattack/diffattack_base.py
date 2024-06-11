@@ -261,7 +261,7 @@ class APGDDiffAttack():
 
 
 
-    
+    # apgd攻击
     def attack_single_run(self, x, y, x_init=None):
         if len(x.shape) < self.ndims:
             x = x.unsqueeze(0)

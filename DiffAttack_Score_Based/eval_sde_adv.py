@@ -26,10 +26,10 @@ class SDE_Adv_Model_DiffAttack(nn.Module):
         super().__init__()
         self.args = args
 
-        # image classifier
+        # 获取图像分类器
         self.classifier = get_image_classifier(args.classifier_name).to(config.device)
 
-        # diffusion model
+        # 选择扩散模型
         print(f'diffusion_type: {args.diffusion_type}')
         if args.diffusion_type == 'ddpm':
             self.runner = GuidedDiffusion(args, config, device=config.device)
@@ -48,8 +48,7 @@ class SDE_Adv_Model_DiffAttack(nn.Module):
 
         self.register_buffer('counter', torch.zeros(1, device=config.device))
         self.tag = None
-
-
+    #定义一个计数器
     def reset_counter(self):
         self.counter = torch.zeros(1, dtype=torch.int, device=config.device)
 
@@ -93,7 +92,7 @@ class SDE_Adv_Model_DiffAttack(nn.Module):
         if return_std_z:
             return out, mid_x, ori_x, a_std, z__
         return out, mid_x, ori_x
-
+# 该函数对给定模型和验证集进行对抗攻击，并生成对抗样本用于后续的评估和分析
 def eval_diffattack(args, config, model, x_val, y_val, adv_batch_size, log_dir):
     ngpus = torch.cuda.device_count()
     model_ = model
@@ -113,9 +112,10 @@ def eval_diffattack(args, config, model, x_val, y_val, adv_batch_size, log_dir):
     # ---------------- apply the attack to sde_adv ----------------
     print(f'apply the attack to sde_adv [{args.lp_norm}]...')
     model_.reset_counter()
-    adversary_sde = DiffAttack(model, norm=args.lp_norm, eps=args.adv_eps,
+    adversary_sde = DiffAttack(model, norm=args.lp_norm, eps=args.adv_eps,  # DiffAttack()最后返回x_adv
                                version=attack_version, attacks_to_run=attack_list,
                                log_path=f'{log_dir}/log_sde_adv.txt', device=config.device, args=args)
+    #print(f'攻击时间: {time.time() - start_time}')
     if attack_version == 'custom':
         adversary_sde.apgd.n_restarts = 1
         adversary_sde.fab.n_restarts = 1
@@ -172,8 +172,9 @@ def parse_args_and_config():
     parser.add_argument('--seed', type=int, default=1234, help='Random seed')
     parser.add_argument('--exp', type=str, default='exp', help='Path for saving running related data.')
     parser.add_argument('--verbose', type=str, default='info', help='Verbose level: info | debug | warning | critical')
-    parser.add_argument('-i', '--image_folder', type=str, default='images', help="The folder name of samples")
+    parser.add_argument('-i', '--image_folder', type=str, default='images', help="The folder name of samples")  # 对抗样本的路径名
     parser.add_argument('--ni', action='store_true', help="No interaction. Suitable for Slurm Job launcher")
+    # sample_step =1 仅进行一次diffusion的前向过程，包括一个400步的加噪去噪过程
     parser.add_argument('--sample_step', type=int, default=1, help='Total sampling steps')
     parser.add_argument('--t', type=int, default=400, help='Sampling noise scale')
     parser.add_argument('--t_interval', type=int, default=10, help='Sampling interval')

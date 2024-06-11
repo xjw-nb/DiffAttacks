@@ -24,70 +24,71 @@ class DiffAttack():
 
         # if version in ['standard', 'plus', 'rand'] and attacks_to_run != []:
         #     raise ValueError("attacks_to_run will be overridden unless you use version='custom'")
-        
+
         if not self.is_tf_model:
             from .diffattack_base import APGDDiffAttack
             self.apgd = APGDDiffAttack(self.model, n_restarts=5, n_iter=100, verbose=True,
                 eps=self.epsilon, norm=self.norm, eot_iter=1, rho=.75, seed=self.seed,
                 device=self.device, logger=self.logger, args=args)
-            
+
             from .fab_pt import FABAttack_PT
             self.fab = FABAttack_PT(self.model, n_restarts=5, n_iter=100, eps=self.epsilon, seed=self.seed,
                 norm=self.norm, verbose=True, device=self.device)
-        
+
             from .square import SquareAttack
             self.square = SquareAttack(self.model, p_init=.8, n_queries=5000, eps=self.epsilon, norm=self.norm,
                 n_restarts=1, seed=self.seed, verbose=False, device=self.device, resc_schedule=False)
-                
+
             from .diffattack_base import APGDAttack_targeted
             self.apgd_targeted = APGDAttack_targeted(self.model, n_restarts=1, n_iter=100, verbose=False,
                 eps=self.epsilon, norm=self.norm, eot_iter=1, rho=.75, seed=self.seed, device=self.device,
                 logger=self.logger)
-    
+
         else:
             from .diffattack_base import APGDAttack
             self.apgd = APGDAttack(self.model, n_restarts=5, n_iter=100, verbose=False,
                 eps=self.epsilon, norm=self.norm, eot_iter=1, rho=.75, seed=self.seed, device=self.device,
                 is_tf_model=True, logger=self.logger)
-            
+
             from .fab_tf import FABAttack_TF
             self.fab = FABAttack_TF(self.model, n_restarts=5, n_iter=100, eps=self.epsilon, seed=self.seed,
                 norm=self.norm, verbose=False, device=self.device)
-        
+
             from .square import SquareAttack
             self.square = SquareAttack(self.model.predict, p_init=.8, n_queries=5000, eps=self.epsilon, norm=self.norm,
                 n_restarts=1, seed=self.seed, verbose=False, device=self.device, resc_schedule=False)
-                
+
             from .diffattack_base import APGDAttack_targeted
             self.apgd_targeted = APGDAttack_targeted(self.model, n_restarts=1, n_iter=100, verbose=False,
                 eps=self.epsilon, norm=self.norm, eot_iter=1, rho=.75, seed=self.seed, device=self.device,
                 is_tf_model=True, logger=self.logger)
-    
+
         if version in ['standard', 'plus', 'rand']:
             self.set_version(version)
-        
+    # logits函数的原始输出，未经激活的分数
     def get_logits(self, x):
-        if not self.is_tf_model:
+        if not self.is_tf_model:  # 若不是TensorFlow模型则直接是使用模型预测。
             return self.model(x)
         else:
-            return self.model.predict(x)
-    
-    def get_seed(self):
+            return self.model.predict(x)  # 否则调用predict()进行预测
+
+    def get_seed(self):  # 若self.seed则用time.time()返回当前的时间戳作为随机种子，否则直接返回self.seed
         return time.time() if self.seed is None else self.seed
-    
+
     def run_standard_evaluation(self, x_orig, y_orig, bs=250, return_labels=False):
         if self.verbose:
             print('using {} version including {}'.format(self.version,
                 ', '.join(self.attacks_to_run)))
-        
+
 
         if self.version != 'rand':
             check_randomized(self.get_logits, x_orig[:bs].to(self.device),
                 y_orig[:bs].to(self.device), bs=bs, logger=self.logger)
 
-        
+
         with torch.no_grad():
             # calculate accuracy
+            # 计算原始数据集可分为多少个bs=250的批次
             n_batches = int(np.ceil(x_orig.shape[0] / bs))
             robust_flags = torch.zeros(x_orig.shape[0], dtype=torch.bool, device=x_orig.device)
             y_adv = torch.empty_like(y_orig)
@@ -95,18 +96,19 @@ class DiffAttack():
                 start_idx = batch_idx * bs
                 end_idx = min( (batch_idx + 1) * bs, x_orig.shape[0])
 
-                x = x_orig[start_idx:end_idx, :].clone().to(self.device)
+                x = x_orig[start_idx:end_idx, :].clone().to(self.device)  # :表示选择所有的列
                 y = y_orig[start_idx:end_idx].clone().to(self.device)
-                output = self.get_logits(x).max(dim=1)[1]
-                y_adv[start_idx: end_idx] = output
-                correct_batch = y.eq(output)
+                output = self.get_logits(x).max(dim=1)[1]  # 获取最大值以及其索引所在的
+                y_adv[start_idx: end_idx] = output  # 预测结果赋值给y_adv
+                correct_batch = y.eq(output)  # 将预测标签与原标签进行比较，返回一个布尔张量
+                # 将这个布尔张量赋值给robust_flags，用于记录每个样本是否被正确分类
                 robust_flags[start_idx:end_idx] = correct_batch.detach().to(robust_flags.device)
 
-            robust_accuracy = torch.sum(robust_flags).item() / x_orig.shape[0]
-            robust_accuracy_dict = {'clean': robust_accuracy}
+            robust_accuracy = torch.sum(robust_flags).item() / x_orig.shape[0]  # torch.sum(robust_flags)求和统计被正确分类的样本个数
+            robust_accuracy_dict = {'clean': robust_accuracy}  # 创建一个新的字典，用于存储模型在原始数据上的鲁棒准确率
 
             robust_flags = torch.ones_like(robust_flags, dtype=torch.long).to(robust_flags.device)
-                    
+
             x_adv = x_orig.clone().detach()
             startt = time.time()
             for attack in self.attacks_to_run:
@@ -124,7 +126,7 @@ class DiffAttack():
 
                 if num_robust > 1:
                     robust_lin_idcs.squeeze_()
-                
+
                 for batch_idx in range(n_batches):
                     start_idx = batch_idx * bs
                     end_idx = min((batch_idx + 1) * bs, num_robust)
@@ -138,46 +140,46 @@ class DiffAttack():
                     # make sure that x is a 4d tensor even if there is only a single datapoint left
                     if len(x.shape) == 3:
                         x.unsqueeze_(dim=0)
-                    
+
                     # run attack
                     if attack == 'apgd-ce':
                         # apgd on cross-entropy loss
                         self.apgd.loss = 'ce'
                         self.apgd.seed = self.get_seed()
                         adv_curr = self.apgd.perturb(x, y) #cheap=True
-                    
+
                     elif attack == 'apgd-dlr':
                         # apgd on dlr loss
                         self.apgd.loss = 'dlr'
                         self.apgd.seed = self.get_seed()
                         adv_curr = self.apgd.perturb(x, y) #cheap=True
-                    
+
                     elif attack == 'fab':
                         # fab
                         self.fab.targeted = False
                         self.fab.seed = self.get_seed()
                         adv_curr = self.fab.perturb(x, y)
-                    
+
                     elif attack == 'square':
                         # square
                         self.square.seed = self.get_seed()
                         adv_curr = self.square.perturb(x, y)
-                    
+
                     elif attack == 'apgd-t':
                         # targeted apgd
                         self.apgd_targeted.seed = self.get_seed()
                         adv_curr = self.apgd_targeted.perturb(x, y) #cheap=True
-                    
+
                     elif attack == 'fab-t':
                         # fab targeted
                         self.fab.targeted = True
                         self.fab.n_restarts = 1
                         self.fab.seed = self.get_seed()
                         adv_curr = self.fab.perturb(x, y)
-                    
+
                     else:
                         raise ValueError('Attack not supported')
-                
+
                     output = self.get_logits(adv_curr).max(dim=1)[1]
                     false_batch = ~y.eq(output).to(robust_flags.device)
                     non_robust_lin_idcs = batch_datapoint_idcs[false_batch]
@@ -187,19 +189,19 @@ class DiffAttack():
                     y_adv[non_robust_lin_idcs] = output[false_batch].detach().to(x_adv.device)
 
                     if self.verbose:
-                        num_non_robust_batch = torch.sum(false_batch)    
+                        num_non_robust_batch = torch.sum(false_batch)
                         self.logger.log('{} - {}/{} - {} out of {} successfully perturbed'.format(
                             attack, batch_idx + 1, n_batches, num_non_robust_batch, x.shape[0]))
-                
+
                 robust_accuracy = torch.sum(robust_flags).item() / x_orig.shape[0]
                 robust_accuracy_dict[attack] = robust_accuracy
                 if self.verbose:
                     self.logger.log('robust accuracy after {}: {:.2%} (total time {:.1f} s)'.format(
                         attack.upper(), robust_accuracy, time.time() - startt))
-                    
+
             # check about square
             check_square_sr(robust_accuracy_dict, logger=self.logger)
-            
+
             # final check
             if self.verbose:
                 if self.norm == 'Linf':
@@ -215,7 +217,7 @@ class DiffAttack():
             return x_adv, y_adv
         else:
             return x_adv
-        
+
     def clean_accuracy(self, x_orig, y_orig, bs=250):
         n_batches = math.ceil(x_orig.shape[0] / bs)
         acc = 0.
@@ -224,22 +226,22 @@ class DiffAttack():
             y = y_orig[counter * bs:min((counter + 1) * bs, x_orig.shape[0])].clone().to(self.device)
             output = self.get_logits(x)
             acc += (output.max(1)[1] == y).float().sum()
-            
+
         if self.verbose:
             print('clean accuracy: {:.2%}'.format(acc / x_orig.shape[0]))
-        
+
         return acc.item() / x_orig.shape[0]
-        
+
     def run_standard_evaluation_individual(self, x_orig, y_orig, bs=250, return_labels=False):
         if self.verbose:
             print('using {} version including {}'.format(self.version,
                 ', '.join(self.attacks_to_run)))
-        
+
         l_attacks = self.attacks_to_run
         adv = {}
         verbose_indiv = self.verbose
         self.verbose = False
-        
+
         for c in l_attacks:
             startt = time.time()
             self.attacks_to_run = [c]
@@ -248,18 +250,18 @@ class DiffAttack():
                 adv[c] = (x_adv, y_adv)
             else:
                 adv[c] = x_adv
-            if verbose_indiv:    
+            if verbose_indiv:
                 acc_indiv  = self.clean_accuracy(x_adv, y_orig, bs=bs)
                 space = '\t \t' if c == 'fab' else '\t'
                 self.logger.log('robust accuracy by {} {} {:.2%} \t (time attack: {:.1f} s)'.format(
                     c.upper(), space, acc_indiv,  time.time() - startt))
-        
+
         return adv
-        
+
     def set_version(self, version='standard'):
         if self.verbose:
             print('setting parameters for {} version'.format(version))
-        
+
         if version == 'standard':
             self.attacks_to_run = ['apgd-ce', 'apgd-t', 'fab-t', 'square']
             if self.norm in ['Linf', 'L2']:
@@ -275,7 +277,7 @@ class DiffAttack():
             self.fab.n_target_classes = 9
             #self.apgd_targeted.n_target_classes = 9
             self.square.n_queries = 5000
-        
+
         elif version == 'plus':
             self.attacks_to_run = ['apgd-ce', 'apgd-dlr', 'fab', 'square', 'apgd-t', 'fab-t']
             self.apgd.n_restarts = 5
@@ -287,7 +289,7 @@ class DiffAttack():
             if not self.norm in ['Linf', 'L2']:
                 print('"{}" version is used with {} norm: please check'.format(
                     version, self.norm))
-        
+
         elif version == 'rand':
             self.attacks_to_run = ['apgd-ce', 'apgd-dlr']
             self.apgd.n_restarts = 1
